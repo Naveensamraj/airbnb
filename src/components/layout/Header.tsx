@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Bell, Menu, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { NOTIFICATIONS } from '../../lib/mockData';
+import { useData } from '../../context/DataContext';
 
 interface HeaderProps {
   title: string;
@@ -12,7 +12,7 @@ interface HeaderProps {
 export default function Header({ title, subtitle, onMenuClick }: HeaderProps) {
   const { user } = useAuth();
   const [showNotifs, setShowNotifs] = useState(false);
-  const unread = NOTIFICATIONS.filter(n => !n.is_read).length;
+  const unread = notifications.filter(n => !n.is_read).length;
 
   const typeColor = (type: string) => {
     const m: Record<string, string> = {
@@ -69,7 +69,7 @@ export default function Header({ title, subtitle, onMenuClick }: HeaderProps) {
                     </button>
                   </div>
                   <div className="max-h-80 overflow-y-auto divide-y divide-slate-50">
-                    {NOTIFICATIONS.map(n => (
+                    {notifications.map(n => (
                       <div key={n.id} className={`px-4 py-3 ${n.is_read ? 'opacity-60' : 'bg-blue-50/30'}`}>
                         <div className="flex items-start gap-2">
                           <span className={`mt-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded ${typeColor(n.type)}`}>

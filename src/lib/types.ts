@@ -1,4 +1,10 @@
-export type UserRole = 'admin' | 'guest';
+export type UserRole = 'admin';
+
+export const CURRENCY = '€';
+
+export function formatMoney(n: number): string {
+  return `${CURRENCY}${n.toLocaleString()}`;
+}
 
 export interface Profile {
   id: string;
@@ -99,6 +105,18 @@ export interface Notification {
   type: 'info' | 'success' | 'warning' | 'error' | 'booking' | 'payment';
   is_read: boolean;
   created_at: string;
+}
+
+export interface Guest {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  total_bookings: number;
+  total_spent: number;
+  last_visit: string | null;
+  is_blacklisted: boolean;
 }
 
 export interface DemoUser {

@@ -1,10 +1,13 @@
 import { BarChart2, TrendingUp, Download, BarChart } from 'lucide-react';
 import { BarChart as BarChartComponent, HorizontalBar, LineChart } from '../../components/ui/Chart';
-import { REVENUE_DATA, OCCUPANCY_DATA, BOOKING_TREND_DATA, BOOKINGS, PROPERTIES } from '../../lib/mockData';
+import { useData } from '../../context/DataContext';
+import { CURRENCY } from '../../lib/types';
+import { REVENUE_DATA, OCCUPANCY_DATA, BOOKING_TREND_DATA } from '../../lib/mockData';
 
 export default function Reports() {
-  const cancelledCount = BOOKINGS.filter(b => b.status === 'cancelled').length;
-  const completedCount = BOOKINGS.filter(b => b.status === 'checked_out').length;
+  const { bookings, properties } = useData();
+  const cancelledCount = bookings.filter(b => b.status === 'cancelled').length;
+  const completedCount = bookings.filter(b => b.status === 'checked_out').length;
   const totalRevenue = REVENUE_DATA.reduce((s, d) => s + d.revenue, 0);
 
   return (
@@ -12,10 +15,10 @@ export default function Reports() {
       {/* Summary */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Revenue YTD', value: `$${totalRevenue.toLocaleString()}`, color: 'text-emerald-700 bg-emerald-50' },
+          { label: 'Total Revenue YTD', value: `${CURRENCY}${totalRevenue.toLocaleString()}`, color: 'text-emerald-700 bg-emerald-50' },
           { label: 'Avg. Occupancy', value: '74%', color: 'text-blue-700 bg-blue-50' },
           { label: 'Completed Stays', value: completedCount, color: 'text-slate-700 bg-slate-100' },
-          { label: 'Cancellation Rate', value: `${Math.round((cancelledCount / BOOKINGS.length) * 100)}%`, color: 'text-red-700 bg-red-50' },
+          { label: 'Cancellation Rate', value: `${Math.round((cancelledCount / bookings.length) * 100)}%`, color: 'text-red-700 bg-red-50' },
         ].map(({ label, value, color }) => (
           <div key={label} className={`card p-4 ${color}`}>
             <p className="text-2xl font-bold">{value}</p>
@@ -69,10 +72,10 @@ export default function Reports() {
         <div className="card p-5">
           <p className="text-sm font-semibold text-slate-900 mb-4">Booking Status Breakdown</p>
           {[
-            { label: 'Confirmed', count: BOOKINGS.filter(b => b.status === 'confirmed').length, color: 'bg-emerald-500' },
-            { label: 'Checked In', count: BOOKINGS.filter(b => b.status === 'checked_in').length, color: 'bg-blue-500' },
-            { label: 'Checked Out', count: BOOKINGS.filter(b => b.status === 'checked_out').length, color: 'bg-slate-400' },
-            { label: 'Pending', count: BOOKINGS.filter(b => ['pending','awaiting_payment','awaiting_approval'].includes(b.status)).length, color: 'bg-amber-500' },
+            { label: 'Confirmed', count: bookings.filter(b => b.status === 'confirmed').length, color: 'bg-emerald-500' },
+            { label: 'Checked In', count: bookings.filter(b => b.status === 'checked_in').length, color: 'bg-blue-500' },
+            { label: 'Checked Out', count: bookings.filter(b => b.status === 'checked_out').length, color: 'bg-slate-400' },
+            { label: 'Pending', count: bookings.filter(b => ['pending','awaiting_payment','awaiting_approval'].includes(b.status)).length, color: 'bg-amber-500' },
             { label: 'Cancelled', count: cancelledCount, color: 'bg-red-500' },
           ].map(({ label, count, color }) => (
             <div key={label} className="flex items-center gap-3 mb-3">
@@ -80,7 +83,7 @@ export default function Reports() {
               <span className="text-sm text-slate-600 flex-1">{label}</span>
               <span className="text-sm font-semibold text-slate-900">{count}</span>
               <div className="w-24 h-1.5 bg-slate-100 rounded-full">
-                <div className={`h-full rounded-full ${color}`} style={{ width: `${(count / BOOKINGS.length) * 100}%` }} />
+                <div className={`h-full rounded-full ${color}`} style={{ width: `${(count / bookings.length) * 100}%` }} />
               </div>
             </div>
           ))}
@@ -106,10 +109,10 @@ export default function Reports() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {PROPERTIES.filter(h => h.is_approved).map((h, i) => {
-                const bookingCount = BOOKINGS.filter(b => b.property_id === h.id).length;
+              {properties.filter(h => h.is_approved).map((h, i) => {
+                const bookingCount = bookings.filter(b => b.property_id === h.id).length;
                 const occ = OCCUPANCY_DATA.find(o => o.property.includes(h.name.split(' ')[0]))?.rate ?? 0;
-                const rev = BOOKINGS.filter(b => b.property_id === h.id && b.status !== 'cancelled')
+                const rev = bookings.filter(b => b.property_id === h.id && b.status !== 'cancelled')
                   .reduce((s, b) => s + b.advance_paid, 0);
                 return (
                   <tr key={h.id} className="hover:bg-slate-50">
@@ -134,7 +137,7 @@ export default function Reports() {
                         <span className="text-xs font-medium">{occ}%</span>
                       </div>
                     </td>
-                    <td className="table-td font-semibold text-emerald-700">${rev.toLocaleString()}</td>
+                    <td className="table-td font-semibold text-emerald-700">{CURRENCY}{rev.toLocaleString()}</td>
                   </tr>
                 );
               })}

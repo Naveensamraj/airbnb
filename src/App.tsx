@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { DataProvider } from './context/DataContext';
 import DashboardLayout from './components/layout/DashboardLayout';
 import Login from './pages/Login';
 
-// Admin pages
 import AdminDashboard from './pages/admin/AdminDashboard';
 import Properties from './pages/admin/Properties';
 import Bookings from './pages/admin/Bookings';
@@ -12,20 +12,13 @@ import Finance from './pages/admin/Finance';
 import Reports from './pages/admin/Reports';
 import Settings from './pages/admin/Settings';
 
-// Guest pages
-import GuestHome from './pages/guest/GuestHome';
-import MyBookings from './pages/guest/MyBookings';
-import GuestPayments from './pages/guest/GuestPayments';
-import GuestNotifications from './pages/guest/GuestNotifications';
-import GuestProfile from './pages/guest/GuestProfile';
-
 interface PageConfig {
   title: string;
   subtitle?: string;
   component: React.ComponentType;
 }
 
-const ADMIN_PAGES: Record<string, PageConfig> = {
+const PAGES: Record<string, PageConfig> = {
   dashboard: { title: 'Admin Dashboard', subtitle: 'Overview of your rental system', component: AdminDashboard },
   properties: { title: 'Property Management', subtitle: 'Manage all rental properties', component: Properties },
   bookings: { title: 'Bookings', subtitle: 'Track and manage all bookings', component: Bookings },
@@ -35,19 +28,9 @@ const ADMIN_PAGES: Record<string, PageConfig> = {
   settings: { title: 'Settings', subtitle: 'Configure system preferences', component: Settings },
 };
 
-const GUEST_PAGES: Record<string, PageConfig> = {
-  browse: { title: 'Browse Properties', subtitle: 'Find your perfect rental', component: GuestHome },
-  bookings: { title: 'My Bookings', subtitle: 'View and manage your bookings', component: MyBookings },
-  payments: { title: 'Payments', subtitle: 'Payment history and receipts', component: GuestPayments },
-  notifications: { title: 'Notifications', subtitle: 'Stay updated on your bookings', component: GuestNotifications },
-  profile: { title: 'My Profile', subtitle: 'Manage your account', component: GuestProfile },
-};
-
-const DEFAULT_VIEWS = { admin: 'dashboard', guest: 'browse' };
-
 function AppContent() {
-  const { user, role, isLoading } = useAuth();
-  const [view, setView] = useState<string>('');
+  const { user, isLoading } = useAuth();
+  const [view, setView] = useState<string>('dashboard');
 
   if (isLoading) {
     return (
@@ -60,24 +43,24 @@ function AppContent() {
     );
   }
 
-  if (!user || !role) {
+  if (!user) {
     return <Login />;
   }
 
-  const activeView = view || DEFAULT_VIEWS[role];
-  const pages = role === 'admin' ? ADMIN_PAGES : GUEST_PAGES;
-  const page = pages[activeView] ?? Object.values(pages)[0];
+  const page = PAGES[view] ?? PAGES.dashboard;
   const PageComponent = page.component;
 
   return (
-    <DashboardLayout
-      title={page.title}
-      subtitle={page.subtitle}
-      activeView={activeView}
-      onNavigate={(v) => setView(v)}
-    >
-      <PageComponent />
-    </DashboardLayout>
+    <DataProvider>
+      <DashboardLayout
+        title={page.title}
+        subtitle={page.subtitle}
+        activeView={view}
+        onNavigate={(v) => setView(v)}
+      >
+        <PageComponent />
+      </DashboardLayout>
+    </DataProvider>
   );
 }
 

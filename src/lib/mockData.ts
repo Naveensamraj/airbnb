@@ -9,14 +9,6 @@ export const DEMO_USERS: DemoUser[] = [
     phone: '+1 555-0100',
     address: '100 Main Street, New York, NY',
   },
-  {
-    id: 'guest-001',
-    role: 'guest',
-    full_name: 'James Carter',
-    email: 'guest@staypro.com',
-    phone: '+1 555-0300',
-    address: '789 Elm Street, Chicago, IL',
-  },
 ];
 
 // Exactly 3 properties — Property A, Property B, Property C.
@@ -267,7 +259,7 @@ export const EXPENSES: Expense[] = [
 
 export const NOTIFICATIONS: Notification[] = [
   { id: 'notif-001', title: 'New Booking Request', message: 'Michael Johnson requested to book Property C', type: 'booking', is_read: false, created_at: '2026-07-09T08:30:00Z' },
-  { id: 'notif-002', title: 'Payment Received', message: 'James Carter paid $1,000 advance for Property A', type: 'payment', is_read: false, created_at: '2026-07-01T14:30:00Z' },
+  { id: 'notif-002', title: 'Payment Received', message: 'James Carter paid €1,000 advance for Property A', type: 'payment', is_read: false, created_at: '2026-07-01T14:30:00Z' },
   { id: 'notif-003', title: 'Guest Checked In', message: 'Emily Rodriguez checked into Property B', type: 'success', is_read: true, created_at: '2026-07-09T09:00:00Z' },
   { id: 'notif-005', title: 'Booking Cancelled', message: 'James Carter cancelled booking BK-2024-005', type: 'warning', is_read: true, created_at: '2026-05-10T12:00:00Z' },
 ];

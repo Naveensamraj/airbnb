@@ -1,35 +1,83 @@
 import { useState } from 'react';
-import { Search, MapPin, Users, Bed, Bath, CheckCircle, XCircle, Eye, Edit3, Plus } from 'lucide-react';
+import { Search, MapPin, Users, Bed, Bath, CheckCircle, XCircle, Eye, Edit3, Plus, Trash2 } from 'lucide-react';
 import { propertyStatusBadge } from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
-import { PROPERTIES } from '../../lib/mockData';
-import { Property } from '../../lib/types';
+import { useData } from '../../context/DataContext';
+import { Property, CURRENCY } from '../../lib/types';
 
 const MAX_PROPERTIES = 3;
 
-const AMENITY_ICONS: Record<string, string> = {
-  WiFi: '📶', AC: '❄️', TV: '📺', Kitchen: '🍳', Parking: '🚗',
-  'Swimming Pool': '🏊', 'Washing Machine': '🫧', 'Hot Water': '🚿', 'Pets Allowed': '🐾',
+const ALL_AMENITIES = ['WiFi', 'AC', 'TV', 'Kitchen', 'Parking', 'Swimming Pool', 'Washing Machine', 'Hot Water', 'Pets Allowed'];
+
+const EMPTY_FORM = {
+  name: '', description: '', location: '', address: '',
+  capacity: 4, bedrooms: 1, bathrooms: 1,
+  daily_price: 0, weekly_price: 0, monthly_price: 0,
+  security_deposit: 0, cleaning_fee: 0,
+  status: 'available' as Property['status'],
+  amenities: [] as string[],
+  cover_photo: 'https://images.pexels.com/photos/323780/pexels-photo-323780.jpeg?auto=compress&cs=tinysrgb&w=800',
 };
 
+type FormState = typeof EMPTY_FORM;
+
 export default function Properties() {
+  const { properties, addProperty, updateProperty, deleteProperty, approveProperty } = useData();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selected, setSelected] = useState<Property | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [deleteTarget, setDeleteTarget] = useState<Property | null>(null);
 
-  const canAddProperty = PROPERTIES.length < MAX_PROPERTIES;
+  const canAddProperty = properties.length < MAX_PROPERTIES;
 
-  const filtered = PROPERTIES.filter(p => {
+  const filtered = properties.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.location.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || p.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
+  const openAdd = () => {
+    setForm(EMPTY_FORM);
+    setEditingId(null);
+    setShowFormModal(true);
+  };
+
+  const openEdit = (p: Property) => {
+    setForm({
+      name: p.name, description: p.description, location: p.location, address: p.address,
+      capacity: p.capacity, bedrooms: p.bedrooms, bathrooms: p.bathrooms,
+      daily_price: p.daily_price, weekly_price: p.weekly_price, monthly_price: p.monthly_price,
+      security_deposit: p.security_deposit, cleaning_fee: p.cleaning_fee,
+      status: p.status, amenities: p.amenities, cover_photo: p.cover_photo,
+    });
+    setEditingId(p.id);
+    setSelected(null);
+    setShowFormModal(true);
+  };
+
+  const handleSubmit = () => {
+    if (!form.name || !form.location) return;
+    if (editingId) {
+      updateProperty(editingId, form);
+    } else {
+      addProperty({ ...form, gallery: [form.cover_photo], rules: {}, is_approved: false });
+    }
+    setShowFormModal(false);
+  };
+
+  const toggleAmenity = (a: string) => {
+    setForm(f => ({
+      ...f,
+      amenities: f.amenities.includes(a) ? f.amenities.filter(x => x !== a) : [...f.amenities, a],
+    }));
+  };
+
   return (
     <div className="space-y-5">
-      {/* Top bar */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -44,20 +92,20 @@ export default function Properties() {
           <option value="maintenance">Maintenance</option>
           <option value="reserved">Reserved</option>
         </select>
-        {canAddProperty && (
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="btn-primary flex-shrink-0">
-            <Plus size={15} />
-            Add Property
+        {canAddProperty ? (
+          <button onClick={openAdd} className="btn-primary flex-shrink-0">
+            <Plus size={15} /> Add Property
           </button>
+        ) : (
+          <span className="text-xs text-amber-600 font-medium flex items-center px-3">
+            Max {MAX_PROPERTIES} properties reached
+          </span>
         )}
       </div>
 
-      {/* Summary strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {['all', 'available', 'occupied', 'maintenance'].map(s => {
-          const count = s === 'all' ? PROPERTIES.length : PROPERTIES.filter(p => p.status === s).length;
+          const count = s === 'all' ? properties.length : properties.filter(p => p.status === s).length;
           const colors: Record<string, string> = {
             all: 'text-slate-700 bg-slate-100', available: 'text-emerald-700 bg-emerald-50',
             occupied: 'text-blue-700 bg-blue-50', maintenance: 'text-red-700 bg-red-50',
@@ -72,7 +120,6 @@ export default function Properties() {
         })}
       </div>
 
-      {/* Properties grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.map(property => (
           <div key={property.id} className="card overflow-hidden hover:shadow-md transition-shadow group">
@@ -85,9 +132,7 @@ export default function Properties() {
               </div>
             </div>
             <div className="p-4">
-              <div className="flex items-start justify-between mb-1">
-                <h3 className="font-semibold text-slate-900 text-sm leading-tight">{property.name}</h3>
-              </div>
+              <h3 className="font-semibold text-slate-900 text-sm leading-tight mb-1">{property.name}</h3>
               <div className="flex items-center gap-1 text-slate-500 text-xs mb-3">
                 <MapPin size={11} /> {property.location}
               </div>
@@ -96,107 +141,141 @@ export default function Properties() {
                 <span className="flex items-center gap-1"><Bed size={11} />{property.bedrooms} bed</span>
                 <span className="flex items-center gap-1"><Bath size={11} />{property.bathrooms} bath</span>
               </div>
-              <div className="flex flex-wrap gap-1 mb-3">
-                {property.amenities.slice(0, 4).map(a => (
-                  <span key={a} className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-                    {AMENITY_ICONS[a] || ''} {a}
-                  </span>
-                ))}
-                {property.amenities.length > 4 && (
-                  <span className="text-[10px] text-slate-400">+{property.amenities.length - 4}</span>
-                )}
-              </div>
               <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                 <div>
-                  <span className="text-base font-bold text-slate-900">${property.daily_price}</span>
+                  <span className="text-base font-bold text-slate-900">{CURRENCY}{property.daily_price}</span>
                   <span className="text-xs text-slate-500">/night</span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   <button onClick={() => setSelected(property)}
                     className="btn-secondary py-1.5 px-3 text-xs gap-1.5">
                     <Eye size={13} /> View
                   </button>
-                  {!property.is_approved && (
-                    <button className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors">
-                      <CheckCircle size={13} /> Approve
-                    </button>
-                  )}
+                  <button onClick={() => openEdit(property)}
+                    className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors" title="Edit">
+                    <Edit3 size={13} />
+                  </button>
+                  <button onClick={() => setDeleteTarget(property)}
+                    className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors" title="Delete">
+                    <Trash2 size={13} />
+                  </button>
                 </div>
               </div>
-              <p className="text-xs text-slate-500 mt-2">{property.location}</p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Add Property modal */}
-      {showAddModal && (
-        <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add New Property" size="xl">
+      {filtered.length === 0 && (
+        <div className="py-12 text-center text-slate-400 text-sm">No properties found.</div>
+      )}
+
+      {/* Add/Edit Property modal */}
+      {showFormModal && (
+        <Modal isOpen={showFormModal} onClose={() => setShowFormModal(false)}
+          title={editingId ? 'Edit Property' : 'Add New Property'} size="xl">
           <div className="space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Property Name</label>
-                <input className="input" placeholder="e.g. Property D" />
+                <input className="input" value={form.name}
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g. Property D" />
               </div>
               <div>
                 <label className="label">Location</label>
-                <input className="input" placeholder="e.g. Miami Beach, FL" />
+                <input className="input" value={form.location}
+                  onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
+                  placeholder="e.g. Miami Beach, FL" />
               </div>
-              <div>
+              <div className="sm:col-span-2">
                 <label className="label">Address</label>
-                <input className="input" placeholder="Full address" />
+                <input className="input" value={form.address}
+                  onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                  placeholder="Full address" />
               </div>
               <div>
-                <label className="label">Daily Price ($)</label>
-                <input className="input" type="number" placeholder="0" />
+                <label className="label">Daily Price ({CURRENCY})</label>
+                <input className="input" type="number" value={form.daily_price}
+                  onChange={e => setForm(f => ({ ...f, daily_price: +e.target.value }))} />
               </div>
               <div>
-                <label className="label">Weekly Price ($)</label>
-                <input className="input" type="number" placeholder="0" />
+                <label className="label">Weekly Price ({CURRENCY})</label>
+                <input className="input" type="number" value={form.weekly_price}
+                  onChange={e => setForm(f => ({ ...f, weekly_price: +e.target.value }))} />
               </div>
               <div>
-                <label className="label">Monthly Price ($)</label>
-                <input className="input" type="number" placeholder="0" />
+                <label className="label">Monthly Price ({CURRENCY})</label>
+                <input className="input" type="number" value={form.monthly_price}
+                  onChange={e => setForm(f => ({ ...f, monthly_price: +e.target.value }))} />
               </div>
               <div>
-                <label className="label">Security Deposit ($)</label>
-                <input className="input" type="number" placeholder="0" />
+                <label className="label">Security Deposit ({CURRENCY})</label>
+                <input className="input" type="number" value={form.security_deposit}
+                  onChange={e => setForm(f => ({ ...f, security_deposit: +e.target.value }))} />
               </div>
               <div>
                 <label className="label">Capacity (guests)</label>
-                <input className="input" type="number" placeholder="0" />
+                <input className="input" type="number" value={form.capacity}
+                  onChange={e => setForm(f => ({ ...f, capacity: +e.target.value }))} />
               </div>
               <div>
                 <label className="label">Bedrooms</label>
-                <input className="input" type="number" placeholder="0" />
+                <input className="input" type="number" value={form.bedrooms}
+                  onChange={e => setForm(f => ({ ...f, bedrooms: +e.target.value }))} />
               </div>
               <div>
                 <label className="label">Bathrooms</label>
-                <input className="input" type="number" placeholder="0" />
+                <input className="input" type="number" value={form.bathrooms}
+                  onChange={e => setForm(f => ({ ...f, bathrooms: +e.target.value }))} />
               </div>
               <div>
-                <label className="label">Cleaning Fee ($)</label>
-                <input className="input" type="number" placeholder="0" />
+                <label className="label">Cleaning Fee ({CURRENCY})</label>
+                <input className="input" type="number" value={form.cleaning_fee}
+                  onChange={e => setForm(f => ({ ...f, cleaning_fee: +e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">Status</label>
+                <select className="input" value={form.status}
+                  onChange={e => setForm(f => ({ ...f, status: e.target.value as Property['status'] }))}>
+                  <option value="available">Available</option>
+                  <option value="occupied">Occupied</option>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="reserved">Reserved</option>
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="label">Cover Photo URL</label>
+                <input className="input" value={form.cover_photo}
+                  onChange={e => setForm(f => ({ ...f, cover_photo: e.target.value }))}
+                  placeholder="https://..." />
               </div>
               <div className="sm:col-span-2">
                 <label className="label">Description</label>
-                <textarea className="input h-24 resize-none" placeholder="Property description..." />
+                <textarea className="input h-24 resize-none" value={form.description}
+                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                  placeholder="Property description..." />
               </div>
             </div>
             <div>
               <label className="label mb-2">Amenities</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {['WiFi', 'AC', 'TV', 'Kitchen', 'Parking', 'Swimming Pool', 'Washing Machine', 'Hot Water', 'Pets Allowed'].map(a => (
-                  <label key={a} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100">
-                    <input type="checkbox" className="rounded" />
-                    <span className="text-xs text-slate-700">{a}</span>
+                {ALL_AMENITIES.map(a => (
+                  <label key={a} className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
+                    form.amenities.includes(a) ? 'bg-blue-50 text-blue-700' : 'bg-slate-50 hover:bg-slate-100'
+                  }`}>
+                    <input type="checkbox" className="rounded" checked={form.amenities.includes(a)}
+                      onChange={() => toggleAmenity(a)} />
+                    <span className="text-xs">{a}</span>
                   </label>
                 ))}
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 pt-2">
-              <button className="btn-primary flex-1 justify-center">Create Property</button>
-              <button onClick={() => setShowAddModal(false)} className="btn-secondary flex-1 justify-center">Cancel</button>
+              <button onClick={handleSubmit} className="btn-primary flex-1 justify-center">
+                {editingId ? 'Save Changes' : 'Create Property'}
+              </button>
+              <button onClick={() => setShowFormModal(false)} className="btn-secondary flex-1 justify-center">Cancel</button>
             </div>
           </div>
         </Modal>
@@ -227,11 +306,11 @@ export default function Properties() {
               <div>
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Pricing</p>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between"><span className="text-slate-500">Daily</span><span className="font-semibold">${selected.daily_price}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-500">Weekly</span><span className="font-semibold">${selected.weekly_price}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-500">Monthly</span><span className="font-semibold">${selected.monthly_price}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-500">Security Deposit</span><span className="font-semibold">${selected.security_deposit}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-500">Cleaning Fee</span><span className="font-semibold">${selected.cleaning_fee}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Daily</span><span className="font-semibold">{CURRENCY}{selected.daily_price}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Weekly</span><span className="font-semibold">{CURRENCY}{selected.weekly_price}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Monthly</span><span className="font-semibold">{CURRENCY}{selected.monthly_price}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Security Deposit</span><span className="font-semibold">{CURRENCY}{selected.security_deposit}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Cleaning Fee</span><span className="font-semibold">{CURRENCY}{selected.cleaning_fee}</span></div>
                 </div>
               </div>
             </div>
@@ -239,22 +318,44 @@ export default function Properties() {
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Amenities</p>
               <div className="flex flex-wrap gap-2">
                 {selected.amenities.map(a => (
-                  <span key={a} className="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full">
-                    {AMENITY_ICONS[a] || ''} {a}
-                  </span>
+                  <span key={a} className="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full">{a}</span>
                 ))}
               </div>
             </div>
             <p className="text-sm text-slate-600">{selected.description}</p>
             <div className="flex flex-col sm:flex-row gap-2 pt-2">
               {!selected.is_approved && (
-                <button className="btn-primary flex-1 justify-center">
+                <button onClick={() => { approveProperty(selected.id); setSelected(null); }}
+                  className="btn-primary flex-1 justify-center">
                   <CheckCircle size={15} /> Approve Property
                 </button>
               )}
-              <button className="btn-secondary flex-1 justify-center">
+              <button onClick={() => openEdit(selected)} className="btn-secondary flex-1 justify-center">
                 <Edit3 size={15} /> Edit Details
               </button>
+              <button onClick={() => { setDeleteTarget(selected); setSelected(null); }}
+                className="btn-danger flex-1 justify-center">
+                <Trash2 size={15} /> Delete
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Delete confirmation */}
+      {deleteTarget && (
+        <Modal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete Property" size="sm">
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">
+              Are you sure you want to delete <span className="font-semibold text-slate-900">{deleteTarget.name}</span>?
+              This action cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => { deleteProperty(deleteTarget.id); setDeleteTarget(null); }}
+                className="btn-danger flex-1 justify-center">
+                <Trash2 size={15} /> Delete
+              </button>
+              <button onClick={() => setDeleteTarget(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
             </div>
           </div>
         </Modal>

@@ -1,32 +1,34 @@
-import { Building2, BookOpen, Users, DollarSign, ArrowRightLeft, CalendarCheck, CalendarX, Clock } from 'lucide-react';
+import { Building2, BookOpen, Users, Euro, ArrowRightLeft, CalendarCheck, CalendarX, Clock } from 'lucide-react';
 import StatCard from '../../components/ui/StatCard';
 import { BarChart, LineChart, HorizontalBar } from '../../components/ui/Chart';
 import { bookingStatusBadge } from '../../components/ui/Badge';
-import { BOOKINGS, REVENUE_DATA, OCCUPANCY_DATA, BOOKING_TREND_DATA, NOTIFICATIONS, PROPERTIES } from '../../lib/mockData';
+import { useData } from '../../context/DataContext';
+import { REVENUE_DATA, OCCUPANCY_DATA, BOOKING_TREND_DATA } from '../../lib/mockData';
 
 export default function AdminDashboard() {
+  const { bookings, properties, notifications } = useData();
   const today = new Date().toISOString().split('T')[0];
-  const todayCheckins = BOOKINGS.filter(b => b.check_in === today).length;
-  const todayCheckouts = BOOKINGS.filter(b => b.check_out === today).length;
-  const pending = BOOKINGS.filter(b => ['pending', 'awaiting_approval', 'awaiting_payment'].includes(b.status)).length;
+  const todayCheckins = bookings.filter(b => b.check_in === today).length;
+  const todayCheckouts = bookings.filter(b => b.check_out === today).length;
+  const pending = bookings.filter(b => ['pending', 'awaiting_approval', 'awaiting_payment'].includes(b.status)).length;
   const totalRevenue = REVENUE_DATA.reduce((s, d) => s + d.revenue, 0);
 
   const recentActivity = [
-    ...NOTIFICATIONS.map(n => ({ ...n, time: new Date(n.created_at).toLocaleDateString() })),
+    ...notifications.map(n => ({ ...n, time: new Date(n.created_at).toLocaleDateString() })),
   ].slice(0, 5);
 
   return (
     <div className="space-y-6">
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Properties" value={PROPERTIES.length} icon={Building2} color="blue" />
-        <StatCard title="Total Bookings" value={BOOKINGS.length} icon={BookOpen} trend={8} trendLabel="vs last month" color="emerald" />
-        <StatCard title="Monthly Revenue" value={24500} icon={DollarSign} trend={18} trendLabel="vs last month" color="amber" prefix="$" />
+        <StatCard title="Total Properties" value={properties.length} icon={Building2} color="blue" />
+        <StatCard title="Total Bookings" value={bookings.length} icon={BookOpen} trend={8} trendLabel="vs last month" color="emerald" />
+        <StatCard title="Monthly Revenue" value={24500} icon={Euro} trend={18} trendLabel="vs last month" color="amber" prefix="€" />
         <StatCard title="Pending Approvals" value={pending} icon={Clock} color="red" />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Active Properties" value={PROPERTIES.filter(p => p.status !== 'maintenance').length} icon={Building2} color="blue" />
+        <StatCard title="Active Properties" value={properties.filter(p => p.status !== 'maintenance').length} icon={Building2} color="blue" />
         <StatCard title="Today's Check-ins" value={todayCheckins || 1} icon={CalendarCheck} color="emerald" />
         <StatCard title="Today's Check-outs" value={todayCheckouts || 2} icon={CalendarX} color="amber" />
         <StatCard title="Pending Payments" value={3} icon={ArrowRightLeft} color="red" />
@@ -85,7 +87,7 @@ export default function AdminDashboard() {
         <div className="card p-5 lg:col-span-2">
           <p className="text-sm font-semibold text-slate-900 mb-4">Recent Bookings</p>
           <div className="space-y-2">
-            {BOOKINGS.slice(0, 5).map(b => (
+            {bookings.slice(0, 5).map(b => (
               <div key={b.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-50 transition-colors">
                 <img src={b.property_cover} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
                 <div className="flex-1 min-w-0">
@@ -94,7 +96,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="text-right flex-shrink-0">
                   {bookingStatusBadge(b.status)}
-                  <p className="text-xs text-slate-400 mt-1">${b.total_amount.toLocaleString()}</p>
+                  <p className="text-xs text-slate-400 mt-1">€{b.total_amount.toLocaleString()}</p>
                 </div>
               </div>
             ))}

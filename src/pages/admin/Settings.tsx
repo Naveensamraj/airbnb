@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Save, Building2, DollarSign, Shield, Bell, BookOpen } from 'lucide-react';
+import { Save, Building2, Euro, Shield, Bell, BookOpen } from 'lucide-react';
 
 const TABS = [
   { id: 'business', label: 'Business Info', icon: Building2 },
   { id: 'booking', label: 'Booking Rules', icon: BookOpen },
-  { id: 'finance', label: 'Finance', icon: DollarSign },
+  { id: 'finance', label: 'Finance', icon: Euro },
   { id: 'security', label: 'Security', icon: Shield },
   { id: 'notifications', label: 'Notifications', icon: Bell },
 ];
@@ -44,7 +44,7 @@ export default function Settings() {
               <div><label className="label">Email</label><input className="input" type="email" defaultValue="admin@staypro.com" /></div>
               <div><label className="label">Phone</label><input className="input" defaultValue="+1 555-0100" /></div>
               <div><label className="label">Currency</label>
-                <select className="input">
+                <select className="input" defaultValue="EUR">
                   <option>USD ($)</option><option>EUR (€)</option><option>INR (₹)</option><option>GBP (£)</option>
                 </select>
               </div>
@@ -83,7 +83,7 @@ export default function Settings() {
           <div className="card p-6 space-y-5">
             <h2 className="text-base font-semibold text-slate-900">Finance Settings</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><label className="label">Listing Fee ($)</label><input className="input" type="number" defaultValue="99" /></div>
+              <div><label className="label">Listing Fee (€)</label><input className="input" type="number" defaultValue="99" /></div>
               <div><label className="label">Commission Rate (%)</label><input className="input" type="number" defaultValue="10" /></div>
               <div><label className="label">Max Properties</label><input className="input" type="number" defaultValue="3" /></div>
               <div><label className="label">Subscription Duration (months)</label><input className="input" type="number" defaultValue="12" /></div>

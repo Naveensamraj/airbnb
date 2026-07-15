@@ -1,7 +1,6 @@
 import {
-  LayoutDashboard, Building2, Users, CreditCard, BarChart3,
-  Settings, LogOut, Home, BookOpen, Wallet, Bell,
-  ChevronRight, Shield, X, ClipboardList,
+  LayoutDashboard, Building2, Users, Wallet, BarChart3,
+  Settings, LogOut, BookOpen, ChevronRight, Shield, X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -21,21 +20,6 @@ const ADMIN_NAV: NavItem[] = [
   { label: 'Settings', icon: Settings, view: 'settings' },
 ];
 
-const GUEST_NAV: NavItem[] = [
-  { label: 'Browse Properties', icon: Home, view: 'browse' },
-  { label: 'My Bookings', icon: BookOpen, view: 'bookings' },
-  { label: 'Payments', icon: CreditCard, view: 'payments' },
-  { label: 'Notifications', icon: Bell, view: 'notifications' },
-  { label: 'Profile', icon: ClipboardList, view: 'profile' },
-];
-
-const ROLE_NAV = { admin: ADMIN_NAV, guest: GUEST_NAV };
-
-const ROLE_COLORS = {
-  admin: { bg: 'bg-blue-600', light: 'bg-blue-50', text: 'text-blue-700', badge: 'bg-blue-100 text-blue-700' },
-  guest: { bg: 'bg-amber-600', light: 'bg-amber-50', text: 'text-amber-700', badge: 'bg-amber-100 text-amber-700' },
-};
-
 interface SidebarProps {
   activeView: string;
   onNavigate: (view: string) => void;
@@ -44,11 +28,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activeView, onNavigate, isOpen, onClose }: SidebarProps) {
-  const { user, role, logout } = useAuth();
-  if (!role) return null;
-
-  const nav = ROLE_NAV[role];
-  const colors = ROLE_COLORS[role];
+  const { user, logout } = useAuth();
   const initials = user?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2) ?? '??';
 
   const handleNavigate = (view: string) => {
@@ -58,7 +38,6 @@ export default function Sidebar({ activeView, onNavigate, isOpen, onClose }: Sid
 
   return (
     <>
-      {/* Mobile overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm lg:hidden"
@@ -71,10 +50,9 @@ export default function Sidebar({ activeView, onNavigate, isOpen, onClose }: Sid
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        {/* Logo */}
         <div className="px-5 py-5 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 ${colors.bg} rounded-lg flex items-center justify-center`}>
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <Building2 size={18} className="text-white" />
             </div>
             <div>
@@ -82,7 +60,6 @@ export default function Sidebar({ activeView, onNavigate, isOpen, onClose }: Sid
               <p className="text-xs text-slate-500 leading-none mt-0.5">Rental Manager</p>
             </div>
           </div>
-          {/* Mobile close button */}
           <button
             onClick={onClose}
             className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
@@ -91,17 +68,15 @@ export default function Sidebar({ activeView, onNavigate, isOpen, onClose }: Sid
           </button>
         </div>
 
-        {/* Role badge */}
         <div className="px-4 py-3">
-          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${colors.badge}`}>
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">
             <Shield size={11} />
-            {role.charAt(0).toUpperCase() + role.slice(1)} Portal
+            Admin Portal
           </span>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 px-3 pb-4 space-y-0.5 overflow-y-auto">
-          {nav.map(item => {
+          {ADMIN_NAV.map(item => {
             const Icon = item.icon;
             const isActive = activeView === item.view;
             return (
@@ -118,10 +93,9 @@ export default function Sidebar({ activeView, onNavigate, isOpen, onClose }: Sid
           })}
         </nav>
 
-        {/* User profile footer */}
         <div className="border-t border-slate-200 p-3">
           <div className="flex items-center gap-3 mb-2">
-            <div className={`w-9 h-9 ${colors.bg} rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0`}>
+            <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
               {initials}
             </div>
             <div className="min-w-0 flex-1">

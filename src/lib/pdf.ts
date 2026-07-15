@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import { Booking } from './types';
+import { Booking, CURRENCY } from './types';
 
 const BRAND = '#2563eb';
 const DARK = '#0f172a';
@@ -88,9 +88,9 @@ export function generateBookingPDF(booking: Booking) {
   y += 3;
 
   y = sectionTitle(doc, 'Payment Summary', y);
-  y = fieldLine(doc, 'Total Amount:', `$${booking.total_amount.toLocaleString()}`, y);
-  y = fieldLine(doc, 'Advance Paid:', `$${booking.advance_paid.toLocaleString()}`, y);
-  y = fieldLine(doc, 'Balance Due:', `$${booking.balance_due.toLocaleString()}`, y);
+  y = fieldLine(doc, 'Total Amount:', `${CURRENCY}${booking.total_amount.toLocaleString()}`, y);
+  y = fieldLine(doc, 'Advance Paid:', `${CURRENCY}${booking.advance_paid.toLocaleString()}`, y);
+  y = fieldLine(doc, 'Balance Due:', `${CURRENCY}${booking.balance_due.toLocaleString()}`, y);
   y = fieldLine(doc, 'Status:', statusLabel(booking.status), y);
   if (booking.notes) {
     y += 2;

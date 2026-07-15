@@ -6,7 +6,7 @@ interface AuthContextValue {
   user: DemoUser | null;
   role: UserRole | null;
   login: (email: string, password: string) => Promise<{ error?: string }>;
-  demoLogin: (role: UserRole) => void;
+  demoLogin: () => void;
   logout: () => void;
   isLoading: boolean;
 }
@@ -15,10 +15,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const STORAGE_KEY = 'prms_demo_user';
 
-const DEMO_PASSWORDS: Record<string, string> = {
-  'admin@staypro.com': 'Admin@123',
-  'guest@staypro.com': 'Guest@123',
-};
+const ADMIN_PASSWORD = 'Admin@123';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<DemoUser | null>(null);
@@ -37,8 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string): Promise<{ error?: string }> => {
-    const expectedPwd = DEMO_PASSWORDS[email.toLowerCase()];
-    if (!expectedPwd || expectedPwd !== password) {
+    if (email.toLowerCase() !== 'admin@staypro.com' || password !== ADMIN_PASSWORD) {
       return { error: 'Invalid email or password.' };
     }
     const demoUser = DEMO_USERS.find(u => u.email === email.toLowerCase());
@@ -48,8 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return {};
   };
 
-  const demoLogin = (role: UserRole) => {
-    const demoUser = DEMO_USERS.find(u => u.role === role);
+  const demoLogin = () => {
+    const demoUser = DEMO_USERS.find(u => u.role === 'admin');
     if (demoUser) {
       setUser(demoUser);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(demoUser));

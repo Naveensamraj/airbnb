@@ -1,12 +1,6 @@
 import { useState } from 'react';
-import { Building2, Shield, Users, Eye, EyeOff, ChevronRight } from 'lucide-react';
+import { Building2, Shield, Eye, EyeOff, ChevronRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { UserRole } from '../lib/types';
-
-const DEMO_ROLES: { role: UserRole; label: string; desc: string; icon: React.ElementType; color: string; email: string; pwd: string }[] = [
-  { role: 'admin', label: 'Admin', desc: 'Full system access', icon: Shield, color: 'from-blue-500 to-blue-700', email: 'admin@staypro.com', pwd: 'Admin@123' },
-  { role: 'guest', label: 'Guest', desc: 'Browse & book rentals', icon: Users, color: 'from-amber-500 to-amber-700', email: 'guest@staypro.com', pwd: 'Guest@123' },
-];
 
 export default function Login() {
   const { login, demoLogin } = useAuth();
@@ -23,10 +17,6 @@ export default function Login() {
     const result = await login(email, password);
     setLoading(false);
     if (result.error) setError(result.error);
-  };
-
-  const handleDemo = (role: UserRole) => {
-    demoLogin(role);
   };
 
   return (
@@ -52,7 +42,7 @@ export default function Login() {
             with confidence
           </h2>
           <p className="text-slate-400 text-base leading-relaxed max-w-sm">
-            A complete end-to-end platform for property owners and guests.
+            A complete end-to-end platform for property management.
             From bookings to finance, everything in one place.
           </p>
         </div>
@@ -61,7 +51,7 @@ export default function Login() {
           {[
             { stat: '5+', label: 'Properties Managed' },
             { stat: '6', label: 'Active Bookings' },
-            { stat: '$126K', label: 'Revenue Tracked' },
+            { stat: '€126K', label: 'Revenue Tracked' },
             { stat: '98%', label: 'Occupancy Rate' },
           ].map(({ stat, label }) => (
             <div key={label} className="bg-white/5 rounded-xl p-4 backdrop-blur-sm border border-white/10">
@@ -85,25 +75,24 @@ export default function Login() {
 
           <div className="bg-white rounded-2xl shadow-2xl p-8">
             <h1 className="text-2xl font-bold text-slate-900 mb-1">Welcome back</h1>
-            <p className="text-slate-500 text-sm mb-8">Sign in to your account to continue</p>
+            <p className="text-slate-500 text-sm mb-8">Sign in to your admin account to continue</p>
 
             {/* Demo quick access */}
             <div className="mb-6">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Quick Demo Access</p>
-              <div className="grid grid-cols-2 gap-2">
-                {DEMO_ROLES.map(({ role, label, desc, icon: Icon, color }) => (
-                  <button
-                    key={role}
-                    onClick={() => handleDemo(role)}
-                    className={`group relative bg-gradient-to-br ${color} rounded-xl p-3 text-left text-white hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5`}
-                  >
-                    <Icon size={18} className="mb-1.5 opacity-90" />
-                    <p className="text-xs font-bold">{label}</p>
-                    <p className="text-[10px] opacity-75 leading-tight mt-0.5">{desc}</p>
-                    <ChevronRight size={12} className="absolute top-2 right-2 opacity-60 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                ))}
-              </div>
+              <button
+                onClick={() => demoLogin()}
+                className="group relative w-full bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl p-4 text-left text-white hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5"
+              >
+                <div className="flex items-center gap-3">
+                  <Shield size={20} className="opacity-90" />
+                  <div>
+                    <p className="text-sm font-bold">Admin Demo</p>
+                    <p className="text-xs opacity-75">Full system access</p>
+                  </div>
+                  <ChevronRight size={14} className="ml-auto opacity-60 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </button>
             </div>
 
             <div className="flex items-center gap-3 mb-6">
@@ -156,7 +145,7 @@ export default function Login() {
 
             <div className="mt-6 pt-4 border-t border-slate-100">
               <p className="text-xs text-slate-400 text-center">
-                Demo credentials: admin / guest @staypro.com &middot; Password: Role@123
+                Demo credentials: admin@staypro.com &middot; Password: Admin@123
               </p>
             </div>
           </div>
