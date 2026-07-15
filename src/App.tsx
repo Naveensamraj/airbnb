@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import DashboardLayout from './components/layout/DashboardLayout';
-import Login from './pages/Login';
 
 import AdminDashboard from './pages/admin/AdminDashboard';
 import Properties from './pages/admin/Properties';
@@ -29,24 +28,7 @@ const PAGES: Record<string, PageConfig> = {
 };
 
 function AppContent() {
-  const { user, isLoading } = useAuth();
   const [view, setView] = useState<string>('dashboard');
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-slate-500">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Login />;
-  }
-
   const page = PAGES[view] ?? PAGES.dashboard;
   const PageComponent = page.component;
 

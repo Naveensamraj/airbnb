@@ -11,6 +11,7 @@ interface HeaderProps {
 
 export default function Header({ title, subtitle, onMenuClick }: HeaderProps) {
   const { user } = useAuth();
+  const { notifications } = useData();
   const [showNotifs, setShowNotifs] = useState(false);
   const unread = notifications.filter(n => !n.is_read).length;
 

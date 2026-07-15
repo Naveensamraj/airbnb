@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Building2, Users, Wallet, BarChart3,
-  Settings, LogOut, BookOpen, ChevronRight, Shield, X,
+  Settings, BookOpen, ChevronRight, Shield, X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -28,7 +28,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activeView, onNavigate, isOpen, onClose }: SidebarProps) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const initials = user?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2) ?? '??';
 
   const handleNavigate = (view: string) => {
@@ -94,7 +94,7 @@ export default function Sidebar({ activeView, onNavigate, isOpen, onClose }: Sid
         </nav>
 
         <div className="border-t border-slate-200 p-3">
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
               {initials}
             </div>
@@ -103,13 +103,6 @@ export default function Sidebar({ activeView, onNavigate, isOpen, onClose }: Sid
               <p className="text-xs text-slate-500 truncate">{user?.email}</p>
             </div>
           </div>
-          <button
-            onClick={logout}
-            className="sidebar-link sidebar-link-inactive w-full text-red-600 hover:text-red-700 hover:bg-red-50"
-          >
-            <LogOut size={16} />
-            <span>Sign Out</span>
-          </button>
         </div>
       </aside>
     </>
