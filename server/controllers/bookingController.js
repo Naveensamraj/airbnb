@@ -263,6 +263,19 @@ exports.createBooking = async (req, res) => {
     const computedTotal = total_amount ?? property.daily_price * nights;
     const computedAdvance = advance_paid ?? 0;
 
+    const fileFields = req.file
+      ? {
+          id_proof_file: `/uploads/id_proofs/${req.file.filename}`,
+          idProofFile: `/uploads/id_proofs/${req.file.filename}`,
+          id_proof_mime_type: req.file.mimetype,
+          idProofMimeType: req.file.mimetype,
+          id_proof_original_name: req.file.originalname,
+          idProofOriginalName: req.file.originalname,
+          id_proof_size: req.file.size,
+          idProofSize: req.file.size,
+        }
+      : {};
+
     const booking = await Booking.create(
       [
         {
@@ -270,17 +283,18 @@ exports.createBooking = async (req, res) => {
           guest: req.user._id,
           property_name: property.name,
           property_cover: property.cover_photo,
-          guest_name: req.user.full_name,
-          guest_email: req.user.email,
-          guest_phone: req.user.phone,
+          guest_name: req.body.guest_name || req.user.full_name,
+          guest_email: req.body.guest_email || req.user.email,
+          guest_phone: req.body.guest_phone || req.user.phone,
           check_in: startDate,
           check_out: endDate,
-          status: "pending",
+          status: req.body.status || "pending",
           total_amount: computedTotal,
           advance_paid: computedAdvance,
           balance_due: computedTotal - computedAdvance,
           num_guests,
           ...rest,
+          ...fileFields,
         },
       ],
       { session },
@@ -397,14 +411,22 @@ exports.updateBooking = async (req, res) => {
       "check_out",
       "num_guests",
       "notes",
-      "vehicle_number",
       "id_proof_type",
       "id_proof_number",
+      "id_proof_file",
+      "id_proof_mime_type",
+      "id_proof_original_name",
+      "id_proof_size",
+      "idProofFile",
+      "idProofMimeType",
+      "idProofOriginalName",
+      "idProofSize",
       "guest_phone",
       "guest_name",
       "guest_email",
       "total_amount",
       "advance_paid",
+      "status",
     ];
 
     const updates = {};
@@ -413,6 +435,27 @@ exports.updateBooking = async (req, res) => {
         updates[field] = req.body[field];
       }
     });
+
+    if (req.file) {
+      const filePath = `/uploads/id_proofs/${req.file.filename}`;
+      updates.id_proof_file = filePath;
+      updates.idProofFile = filePath;
+      updates.id_proof_mime_type = req.file.mimetype;
+      updates.idProofMimeType = req.file.mimetype;
+      updates.id_proof_original_name = req.file.originalname;
+      updates.idProofOriginalName = req.file.originalname;
+      updates.id_proof_size = req.file.size;
+      updates.idProofSize = req.file.size;
+    } else if (req.body.remove_id_proof === "true" || req.body.remove_id_proof === true) {
+      updates.id_proof_file = "";
+      updates.idProofFile = "";
+      updates.id_proof_mime_type = "";
+      updates.idProofMimeType = "";
+      updates.id_proof_original_name = "";
+      updates.idProofOriginalName = "";
+      updates.id_proof_size = 0;
+      updates.idProofSize = 0;
+    }
 
     if (updates.check_in || updates.check_out) {
       const startDate = updates.check_in

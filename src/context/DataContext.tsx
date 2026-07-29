@@ -16,6 +16,8 @@ import * as bookingService from '../services/bookingService';
 import * as paymentService from '../services/paymentService';
 import * as notificationService from '../services/notificationService';
 import * as dashboardService from '../services/dashboardService';
+import * as guestService from '../services/guestService';
+import * as expenseService from '../services/expenseService';
 import {
   deriveGuestsFromBookings,
   buildRevenueData,
@@ -69,11 +71,11 @@ interface DataContextValue {
   deleteProperty: (id: string) => Promise<void>;
   approveProperty: (id: string) => Promise<void>;
 
-  addBooking: (b: Omit<Booking, 'id' | 'created_at'>) => Promise<void>;
-  updateBooking: (id: string, b: Partial<Booking>) => Promise<void>;
+  addBooking: (b: Omit<Booking, 'id' | 'created_at'>, file?: File) => Promise<Booking>;
+  updateBooking: (id: string, b: Partial<Booking>, file?: File, removeFile?: boolean) => Promise<Booking>;
   deleteBooking: (id: string) => Promise<void>;
-  approveBooking: (id: string) => Promise<void>;
-  rejectBooking: (id: string) => Promise<void>;
+  approveBooking: (id: string) => Promise<Booking | void>;
+  rejectBooking: (id: string) => Promise<Booking | void>;
 
   addGuest: (g: Omit<Guest, 'id' | 'total_bookings' | 'total_spent' | 'last_visit' | 'is_blacklisted'>) => void;
   updateGuest: (id: string, g: Partial<Guest>) => void;
@@ -83,8 +85,9 @@ interface DataContextValue {
   addPayment: (payment: Partial<Payment>) => Promise<void>;
   deletePayment: (id: string) => Promise<void>;
 
-  addExpense: (e: Omit<Expense, 'id'>) => void;
-  deleteExpense: (id: string) => void;
+  addExpense: (e: Omit<Expense, 'id'>) => Promise<void> | void;
+  updateExpense: (id: string, e: Partial<Expense>) => Promise<void> | void;
+  deleteExpense: (id: string) => Promise<void> | void;
 
   markNotificationRead: (id: string) => Promise<void>;
   markAllNotificationsRead: () => Promise<void>;
@@ -102,6 +105,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const [properties, setProperties] = useState<Property[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [apiGuests, setApiGuests] = useState<Guest[]>([]);
   const [guestOverrides, setGuestOverrides] = useState<Guest[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -123,6 +127,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       merged.set(guest.email || guest.id, guest);
     });
 
+    apiGuests.forEach((guest) => {
+      const key = guest.email || guest.id;
+      const existing = merged.get(key);
+      merged.set(key, existing ? { ...existing, ...guest } : guest);
+    });
+
     guestOverrides.forEach((guest) => {
       const key = guest.email || guest.id;
       const existing = merged.get(key);
@@ -130,7 +140,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     });
 
     return Array.from(merged.values());
-  }, [derivedGuests, guestOverrides]);
+  }, [derivedGuests, apiGuests, guestOverrides]);
 
   const revenueData = useMemo(
     () => buildRevenueData(monthlyRevenue, expenses),
@@ -154,6 +164,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         nextBookings,
         nextPayments,
         nextNotifications,
+        nextGuests,
+        nextExpenses,
         dashboard,
         revenue,
       ] = await Promise.all([
@@ -161,6 +173,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         bookingService.getBookings().catch(() => []),
         paymentService.getPayments().catch(() => []),
         notificationService.getNotifications().catch(() => []),
+        guestService.getGuests().catch(() => []),
+        expenseService.getExpenses().catch(() => []),
         dashboardService.getDashboard().catch(() => ({ stats: null, monthlyRevenue: [] })),
         dashboardService.getDashboardRevenue().catch(() => []),
       ]);
@@ -169,6 +183,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setBookings(nextBookings);
       setPayments(nextPayments);
       setNotifications(nextNotifications);
+      setApiGuests(nextGuests);
+      if (Array.isArray(nextExpenses) && nextExpenses.length) {
+        setExpenses(nextExpenses);
+      }
       if (dashboard?.stats) setDashboardStats(dashboard.stats);
       if (Array.isArray(revenue) && revenue.length) {
         setMonthlyRevenue(revenue);
@@ -241,44 +259,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshData]);
 
-  const addBooking = useCallback(async (b: Omit<Booking, 'id' | 'created_at'>) => {
+  const addBooking = useCallback(async (b: Omit<Booking, 'id' | 'created_at'>, file?: File) => {
     try {
       setError(null);
-      const created = await bookingService.createBooking(b);
+      const created = await bookingService.createBooking(b, file);
       setBookings((prev) => [created, ...prev]);
       await refreshData();
+      return created;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create booking');
       throw err;
     }
   }, [refreshData]);
 
-  const updateBooking = useCallback(async (id: string, patch: Partial<Booking>) => {
+  const updateBooking = useCallback(async (id: string, patch: Partial<Booking>, file?: File, removeFile?: boolean) => {
     try {
       setError(null);
-      const current = bookings.find((item) => item.id === id);
-      if (!current) return;
-
-      let updated = current;
-      if (patch.status && patch.status !== current.status) {
-        updated = await bookingService.updateBookingStatus(id, patch.status);
-      }
-
-      const hasOtherChanges = Object.keys(patch).some(
-        (key) => key !== 'status' && patch[key as keyof Booking] !== current[key as keyof Booking]
-      );
-
-      if (hasOtherChanges) {
-        updated = await bookingService.updateBooking(id, { ...current, ...patch });
-      }
-
-      setBookings((prev) => prev.map((item) => (item.id === id ? { ...item, ...updated, ...patch } : item)));
+      const updated = await bookingService.updateBooking(id, patch, file, removeFile);
+      setBookings((prev) => prev.map((item) => (item.id === id ? updated : item)));
       await refreshData();
+      return updated;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update booking');
       throw err;
     }
-  }, [bookings, refreshData]);
+  }, [refreshData]);
 
   const deleteBooking = useCallback(async (id: string) => {
     try {
@@ -316,51 +321,85 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshData]);
 
-  const addGuest = useCallback((g: Omit<Guest, 'id' | 'total_bookings' | 'total_spent' | 'last_visit' | 'is_blacklisted'>) => {
-    const ng: Guest = {
-      ...g,
-      id: uid('guest'),
-      total_bookings: 0,
-      total_spent: 0,
-      last_visit: null,
-      is_blacklisted: false,
-    };
-    setGuestOverrides((prev) => [...prev, ng]);
-  }, []);
+  const addGuest = useCallback(async (g: Partial<Guest>) => {
+    try {
+      setError(null);
+      const created = await guestService.createGuest(g);
+      setApiGuests((prev) => [created, ...prev]);
+      await refreshData();
+    } catch {
+      // Fallback local addition if API call is offline
+      const ng: Guest = {
+        id: uid('guest'),
+        name: g.name || 'Guest User',
+        email: g.email || '',
+        phone: g.phone || '',
+        address: g.address || '',
+        status: 'active',
+        is_blacklisted: false,
+        total_bookings: 0,
+        total_spent: 0,
+        last_visit: null,
+      };
+      setGuestOverrides((prev) => [...prev, ng]);
+    }
+  }, [refreshData]);
 
-  const updateGuest = useCallback((id: string, patch: Partial<Guest>) => {
-    setGuestOverrides((prev) => {
-      const existing = prev.find((guest) => guest.id === id);
-      if (existing) {
-        return prev.map((guest) => (guest.id === id ? { ...guest, ...patch } : guest));
-      }
-      const derived = derivedGuests.find((guest) => guest.id === id);
-      if (derived) {
-        return [...prev, { ...derived, ...patch }];
-      }
-      return prev;
-    });
-  }, [derivedGuests]);
+  const updateGuest = useCallback(async (id: string, patch: Partial<Guest>) => {
+    try {
+      setError(null);
+      const updated = await guestService.updateGuest(id, patch);
+      setApiGuests((prev) => prev.map((g) => (g.id === id ? updated : g)));
+      await refreshData();
+    } catch {
+      setGuestOverrides((prev) => {
+        const existing = prev.find((guest) => guest.id === id);
+        if (existing) {
+          return prev.map((guest) => (guest.id === id ? { ...guest, ...patch } : guest));
+        }
+        const derived = derivedGuests.find((guest) => guest.id === id);
+        if (derived) {
+          return [...prev, { ...derived, ...patch }];
+        }
+        return prev;
+      });
+    }
+  }, [derivedGuests, refreshData]);
 
-  const deleteGuest = useCallback((id: string) => {
-    setGuestOverrides((prev) => prev.filter((guest) => guest.id !== id));
-  }, []);
+  const deleteGuest = useCallback(async (id: string) => {
+    try {
+      setError(null);
+      await guestService.deleteGuest(id);
+      setApiGuests((prev) => prev.filter((g) => g.id !== id));
+      setGuestOverrides((prev) => prev.filter((guest) => guest.id !== id));
+      await refreshData();
+    } catch {
+      setGuestOverrides((prev) => prev.filter((guest) => guest.id !== id));
+    }
+  }, [refreshData]);
 
-  const toggleBlacklist = useCallback((id: string) => {
-    setGuestOverrides((prev) => {
-      const existing = prev.find((guest) => guest.id === id);
-      if (existing) {
-        return prev.map((guest) => (
-          guest.id === id ? { ...guest, is_blacklisted: !guest.is_blacklisted } : guest
-        ));
-      }
-      const derived = derivedGuests.find((guest) => guest.id === id);
-      if (derived) {
-        return [...prev, { ...derived, is_blacklisted: !derived.is_blacklisted }];
-      }
-      return prev;
-    });
-  }, [derivedGuests]);
+  const toggleBlacklist = useCallback(async (id: string) => {
+    try {
+      setError(null);
+      const updated = await guestService.toggleGuestBlacklist(id);
+      setApiGuests((prev) => prev.map((g) => (g.id === id ? updated : g)));
+      await refreshData();
+    } catch {
+      setGuestOverrides((prev) => {
+        const existing = prev.find((guest) => guest.id === id);
+        if (existing) {
+          return prev.map((guest) => (
+            guest.id === id ? { ...guest, is_blacklisted: !guest.is_blacklisted, status: !guest.is_blacklisted ? 'blacklisted' : 'active' } : guest
+          ));
+        }
+        const derived = derivedGuests.find((guest) => guest.id === id);
+        if (derived) {
+          return [...prev, { ...derived, is_blacklisted: !derived.is_blacklisted, status: !derived.is_blacklisted ? 'blacklisted' : 'active' }];
+        }
+        return prev;
+      });
+    }
+  }, [derivedGuests, refreshData]);
 
   const addPayment = useCallback(async (payment: Partial<Payment>) => {
     try {
@@ -386,12 +425,38 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshData]);
 
-  const addExpense = useCallback((e: Omit<Expense, 'id'>) => {
-    setExpenses((prev) => [{ ...e, id: uid('exp') }, ...prev]);
+  const addExpense = useCallback(async (e: Omit<Expense, 'id'>) => {
+    try {
+      setError(null);
+      const created = await expenseService.createExpense(e).catch(() => ({ ...e, id: uid('exp') }));
+      setExpenses((prev) => [created, ...prev]);
+    } catch (err) {
+      setExpenses((prev) => [{ ...e, id: uid('exp') }, ...prev]);
+    }
   }, []);
 
-  const deleteExpense = useCallback((id: string) => {
-    setExpenses((prev) => prev.filter((item) => item.id !== id));
+  const updateExpense = useCallback(async (id: string, patch: Partial<Expense>) => {
+    try {
+      setError(null);
+      const updated = await expenseService.updateExpense(id, patch).catch(() => null);
+      setExpenses((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, ...patch, ...(updated || {}) } : item))
+      );
+    } catch (err) {
+      setExpenses((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, ...patch } : item))
+      );
+    }
+  }, []);
+
+  const deleteExpense = useCallback(async (id: string) => {
+    try {
+      setError(null);
+      await expenseService.deleteExpense(id).catch(() => {});
+      setExpenses((prev) => prev.filter((item) => item.id !== id));
+    } catch (err) {
+      setExpenses((prev) => prev.filter((item) => item.id !== id));
+    }
   }, []);
 
   const markNotificationRead = useCallback(async (id: string) => {
@@ -455,6 +520,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addPayment,
       deletePayment,
       addExpense,
+      updateExpense,
       deleteExpense,
       markNotificationRead,
       markAllNotificationsRead,

@@ -11,11 +11,14 @@ const {
   validateAvailability,
 } = require("../validators/bookingValidator");
 
+const { handleIdProofUpload } = require("../middleware/uploadMiddleware");
+
 const router = express.Router();
 
 router.post(
   "/",
   protect,
+  handleIdProofUpload,
   validateCreateBooking,
   bookingController.createBooking,
 );
@@ -41,6 +44,7 @@ router.get(
 router.put(
   "/:id",
   protect,
+  handleIdProofUpload,
   validateUpdateBooking,
   bookingController.updateBooking,
 );

@@ -35,13 +35,77 @@ const UserSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    alt_phone: {
+      type: String,
+      trim: true,
+    },
+    city: {
+      type: String,
+      trim: true,
+    },
+    state: {
+      type: String,
+      trim: true,
+    },
+    country: {
+      type: String,
+      trim: true,
+    },
+    postal_code: {
+      type: String,
+      trim: true,
+    },
+    emergency_contact_name: {
+      type: String,
+      trim: true,
+    },
+    emergency_contact_phone: {
+      type: String,
+      trim: true,
+    },
+    id_proof_type: {
+      type: String,
+      trim: true,
+    },
+    id_proof_number: {
+      type: String,
+      trim: true,
+    },
+    id_proof_file: {
+      type: String,
+      trim: true,
+    },
+    id_proof_mime_type: {
+      type: String,
+      trim: true,
+    },
+    id_proof_original_name: {
+      type: String,
+      trim: true,
+    },
+    id_proof_size: {
+      type: Number,
+    },
     avatar_url: {
       type: String,
       trim: true,
     },
+    status: {
+      type: String,
+      enum: ["active", "blacklisted", "inactive"],
+      default: "active",
+    },
     is_active: {
       type: Boolean,
       default: true,
+    },
+    guest_notes: {
+      type: String,
+      trim: true,
+    },
+    admin_notes: {
+      type: String,
+      trim: true,
     },
   },
   {

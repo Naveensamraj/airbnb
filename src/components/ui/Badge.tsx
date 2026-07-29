@@ -33,7 +33,8 @@ export default function Badge({ label, variant = 'default', size = 'sm', dot = f
   );
 }
 
-export function bookingStatusBadge(status: string) {
+export function bookingStatusBadge(status?: string) {
+  const safeStatus = (status || 'pending').toLowerCase();
   const map: Record<string, { label: string; variant: BadgeProps['variant'] }> = {
     pending: { label: 'Pending', variant: 'warning' },
     awaiting_payment: { label: 'Awaiting Payment', variant: 'warning' },
@@ -44,17 +45,18 @@ export function bookingStatusBadge(status: string) {
     cancelled: { label: 'Cancelled', variant: 'error' },
     refunded: { label: 'Refunded', variant: 'purple' },
   };
-  const cfg = map[status] ?? { label: status, variant: 'default' as const };
+  const cfg = map[safeStatus] ?? { label: status || 'Pending', variant: 'default' as const };
   return <Badge label={cfg.label} variant={cfg.variant} dot />;
 }
 
-export function propertyStatusBadge(status: string) {
+export function propertyStatusBadge(status?: string) {
+  const safeStatus = (status || 'available').toLowerCase();
   const map: Record<string, { label: string; variant: BadgeProps['variant'] }> = {
     available: { label: 'Available', variant: 'success' },
     occupied: { label: 'Occupied', variant: 'info' },
     maintenance: { label: 'Maintenance', variant: 'error' },
     reserved: { label: 'Reserved', variant: 'warning' },
   };
-  const cfg = map[status] ?? { label: status, variant: 'default' as const };
+  const cfg = map[safeStatus] ?? { label: status || 'Available', variant: 'default' as const };
   return <Badge label={cfg.label} variant={cfg.variant} dot />;
 }

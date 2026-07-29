@@ -10,6 +10,7 @@ import Guests from './pages/admin/Guests';
 import Finance from './pages/admin/Finance';
 import Reports from './pages/admin/Reports';
 import Settings from './pages/admin/Settings';
+import ReservationCalendar from './pages/admin/ReservationCalendar';
 
 import Login from './pages/Login';
 
@@ -23,6 +24,7 @@ const PAGES: Record<string, PageConfig> = {
   dashboard: { title: 'Admin Dashboard', subtitle: 'Overview of your rental system', component: AdminDashboard },
   properties: { title: 'Property Management', subtitle: 'Manage all rental properties', component: Properties },
   bookings: { title: 'Bookings', subtitle: 'Track and manage all bookings', component: Bookings },
+  calendar: { title: 'Reservation Calendar', subtitle: 'Interactive Property Booking & Occupancy Schedule', component: ReservationCalendar },
   guests: { title: 'Guest Management', subtitle: 'View and manage guest records', component: Guests },
   finance: { title: 'Finance', subtitle: 'Track income, expenses, and profit', component: Finance },
   reports: { title: 'Reports', subtitle: 'Analytics and performance insights', component: Reports },
@@ -63,7 +65,7 @@ function AppContent() {
         activeView={view}
         onNavigate={(v) => setView(v)}
       >
-        <PageComponent />
+        <PageComponent {...({ onNavigate: (v: string) => setView(v) } as any)} />
       </DashboardLayout>
     </DataProvider>
   );

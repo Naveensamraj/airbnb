@@ -57,9 +57,12 @@ export interface Booking {
   advance_paid: number;
   balance_due: number;
   num_guests: number;
-  vehicle_number: string;
   id_proof_type: string;
   id_proof_number: string;
+  id_proof_file?: string;
+  id_proof_mime_type?: string;
+  id_proof_original_name?: string;
+  id_proof_size?: number;
   notes: string;
   created_at: string;
 }
@@ -88,11 +91,23 @@ export interface Payment {
   created_at: string;
 }
 
+export type ExpenseCategory =
+  | 'maintenance'
+  | 'electricity'
+  | 'water'
+  | 'cleaning'
+  | 'repairs'
+  | 'salary'
+  | 'misc'
+  | 'other';
+
 export interface Expense {
   id: string;
   property_id: string;
   property_name: string;
-  category: 'maintenance' | 'electricity' | 'water' | 'cleaning' | 'repairs' | 'salary' | 'misc';
+  category: ExpenseCategory | string;
+  custom_category?: string | null;
+  customCategory?: string | null;
   amount: number;
   description: string;
   expense_date: string;
@@ -112,11 +127,55 @@ export interface Guest {
   name: string;
   email: string;
   phone: string;
+  alt_phone?: string;
   address: string;
-  total_bookings: number;
-  total_spent: number;
-  last_visit: string | null;
+  city?: string;
+  state?: string;
+  country?: string;
+  postal_code?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  avatar_url?: string;
+  status?: 'active' | 'blacklisted' | 'inactive';
   is_blacklisted: boolean;
+
+  id_proof_type?: string;
+  id_proof_number?: string;
+  id_proof_file?: string;
+  id_proof_mime_type?: string;
+  id_proof_original_name?: string;
+  id_proof_size?: number;
+
+  total_bookings: number;
+  active_bookings?: number;
+  completed_bookings?: number;
+  cancelled_bookings?: number;
+  pending_bookings?: number;
+  last_booking_date?: string | null;
+  last_check_in?: string | null;
+  last_check_out?: string | null;
+  total_nights_stayed?: number;
+  favourite_property?: string;
+
+  total_paid?: number;
+  pending_amount?: number;
+  advance_paid?: number;
+  refund_amount?: number;
+  outstanding_balance?: number;
+  preferred_payment_method?: string;
+  last_payment_date?: string | null;
+
+  total_spent: number;
+  avg_booking_value?: number;
+  avg_stay_duration?: number;
+  lifetime_since?: string;
+  last_visit: string | null;
+
+  guest_notes?: string;
+  admin_notes?: string;
+
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface DemoUser {

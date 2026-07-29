@@ -9,6 +9,8 @@ const bookingRoutes = require("./routes/bookingRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const guestRoutes = require("./routes/guestRoutes");
+const expenseRoutes = require("./routes/expenseRoutes");
 
 dotenv.config({ path: path.join(__dirname, ".env") });
 
@@ -38,6 +40,8 @@ app.use("/api/bookings", bookingRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/guests", guestRoutes);
+app.use("/api/expenses", expenseRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });

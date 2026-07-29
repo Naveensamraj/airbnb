@@ -1,24 +1,33 @@
 import { useState, useMemo } from 'react';
-import { Search, Eye, CheckCircle, XCircle, Calendar, Download, FileText, Plus, Edit3, Trash2 } from 'lucide-react';
+import { Search, Eye, CheckCircle, XCircle, Calendar, Download, FileText, Plus, Edit3, Trash2, ExternalLink, Loader2, AlertTriangle } from 'lucide-react';
 import { bookingStatusBadge } from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
+import IdProofUpload from '../../components/ui/IdProofUpload';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
 import { Booking, CURRENCY } from '../../lib/types';
 import { generateBookingPDF, generateAllBookingsPDF } from '../../lib/pdf';
+import { getBookingById, checkDoubleBooking } from '../../services/bookingService';
 
 const STATUS_TABS = ['all', 'pending', 'awaiting_approval', 'confirmed', 'checked_in', 'checked_out', 'cancelled'];
 
 const EMPTY_FORM = {
   property_id: '', guest_name: '', guest_email: '', guest_phone: '',
   check_in: '', check_out: '', status: 'pending' as Booking['status'],
-  total_amount: 0, advance_paid: 0, num_guests: 1, vehicle_number: '',
+  total_amount: 0, advance_paid: 0, num_guests: 1,
   id_proof_type: 'Passport', id_proof_number: '', notes: '',
 };
 
 type FormState = typeof EMPTY_FORM;
 
-export default function Bookings() {
+interface BookingsProps {
+  onNavigate?: (view: string) => void;
+}
+
+export default function Bookings({ onNavigate }: BookingsProps) {
   const { bookings, properties, addBooking, updateBooking, deleteBooking, approveBooking, rejectBooking } = useData();
+  const { user } = useAuth();
+
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('all');
   const [selected, setSelected] = useState<Booking | null>(null);
@@ -27,12 +36,19 @@ export default function Bookings() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [deleteTarget, setDeleteTarget] = useState<Booking | null>(null);
 
+  // ID proof file handling
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [removeExistingFile, setRemoveExistingFile] = useState(false);
+  const [editingBookingObj, setEditingBookingObj] = useState<Booking | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
   const filtered = useMemo(() => (
     bookings.filter(b => {
+      if (!b) return false;
       const matchSearch =
-        b.guest_name.toLowerCase().includes(search.toLowerCase()) ||
-        b.property_name.toLowerCase().includes(search.toLowerCase()) ||
-        b.id.toLowerCase().includes(search.toLowerCase());
+        (b.guest_name || '').toLowerCase().includes(search.toLowerCase()) ||
+        (b.property_name || '').toLowerCase().includes(search.toLowerCase()) ||
+        (b.id || '').toLowerCase().includes(search.toLowerCase());
       const matchTab = tab === 'all' || b.status === tab;
       return matchSearch && matchTab;
     })
@@ -41,12 +57,17 @@ export default function Bookings() {
   const nights = (b: Booking) => {
     const d1 = new Date(b.check_in);
     const d2 = new Date(b.check_out);
+    if (Number.isNaN(d1.getTime()) || Number.isNaN(d2.getTime())) return 1;
     return Math.max(1, Math.round((d2.getTime() - d1.getTime()) / 86400000));
   };
 
   const openAdd = () => {
     setForm(EMPTY_FORM);
     setEditingId(null);
+    setEditingBookingObj(null);
+    setSelectedFile(null);
+    setRemoveExistingFile(false);
+    setFormError(null);
     setShowFormModal(true);
   };
 
@@ -55,16 +76,39 @@ export default function Bookings() {
       property_id: b.property_id, guest_name: b.guest_name, guest_email: b.guest_email,
       guest_phone: b.guest_phone, check_in: b.check_in, check_out: b.check_out,
       status: b.status, total_amount: b.total_amount, advance_paid: b.advance_paid,
-      num_guests: b.num_guests, vehicle_number: b.vehicle_number,
-      id_proof_type: b.id_proof_type, id_proof_number: b.id_proof_number, notes: b.notes,
+      num_guests: b.num_guests, id_proof_type: b.id_proof_type || 'Passport',
+      id_proof_number: b.id_proof_number || '', notes: b.notes || '',
     });
     setEditingId(b.id);
+    setEditingBookingObj(b);
+    setSelectedFile(null);
+    setRemoveExistingFile(false);
     setSelected(null);
+    setFormError(null);
     setShowFormModal(true);
   };
 
-  const handleSubmit = () => {
-    if (!form.guest_name || !form.property_id || !form.check_in || !form.check_out) return;
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    if (!form.guest_name || !form.property_id || !form.check_in || !form.check_out) {
+      setFormError('Please fill out all required fields.');
+      return;
+    }
+
+    const doubleCheck = checkDoubleBooking(
+      bookings,
+      form.property_id,
+      form.check_in,
+      form.check_out,
+      editingId || undefined
+    );
+
+    if (doubleCheck.isConflicting) {
+      setFormError('This property is already booked for the selected dates.');
+      return;
+    }
+
     const prop = properties.find(p => p.id === form.property_id);
     if (!prop) return;
     const balance = form.total_amount - form.advance_paid;
@@ -75,12 +119,34 @@ export default function Bookings() {
       guest_id: 'guest-manual',
       balance_due: balance,
     };
-    if (editingId) {
-      updateBooking(editingId, data);
-    } else {
-      addBooking(data);
+
+    try {
+      if (editingId) {
+        await updateBooking(editingId, data, selectedFile || undefined, removeExistingFile);
+      } else {
+        await addBooking(data, selectedFile || undefined);
+      }
+      setShowFormModal(false);
+      setSelectedFile(null);
+      setRemoveExistingFile(false);
+      setFormError(null);
+    } catch {
+      setFormError('Failed to save booking.');
     }
-    setShowFormModal(false);
+  };
+
+  const handleDownloadPdf = async (booking: Booking) => {
+    try {
+      setDownloadingId(booking.id);
+      // Fetch latest booking data from MongoDB before generating PDF
+      const freshBooking = await getBookingById(booking.id).catch(() => booking);
+      await generateBookingPDF(freshBooking, user?.full_name || 'Logged-in Admin');
+    } catch (err) {
+      console.error('Failed to download PDF:', err);
+      await generateBookingPDF(booking, user?.full_name || 'Logged-in Admin');
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   return (
@@ -91,6 +157,14 @@ export default function Bookings() {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by guest, property, or ID..."
             className="input pl-9 w-full" />
         </div>
+        {onNavigate && (
+          <button
+            onClick={() => onNavigate('calendar')}
+            className="btn-primary bg-indigo-600 hover:bg-indigo-500 text-white flex-shrink-0 flex items-center gap-2"
+          >
+            <Calendar size={15} /> Reservation Calendar
+          </button>
+        )}
         <button onClick={openAdd} className="btn-primary flex-shrink-0">
           <Plus size={15} /> New Booking
         </button>
@@ -171,9 +245,9 @@ export default function Bookings() {
                         className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors" title="View">
                         <Eye size={14} />
                       </button>
-                      <button onClick={() => generateBookingPDF(b)}
-                        className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors" title="Download PDF">
-                        <FileText size={14} />
+                      <button onClick={() => handleDownloadPdf(b)} disabled={downloadingId === b.id}
+                        className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors disabled:opacity-50" title="Download PDF Receipt">
+                        {downloadingId === b.id ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
                       </button>
                       <button onClick={() => openEdit(b)}
                         className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600 transition-colors" title="Edit">
@@ -212,6 +286,11 @@ export default function Bookings() {
         <Modal isOpen={showFormModal} onClose={() => setShowFormModal(false)}
           title={editingId ? 'Edit Booking' : 'New Booking'} size="lg">
           <div className="space-y-4">
+            {formError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 font-semibold text-xs flex items-center gap-2">
+                <AlertTriangle size={16} /> {formError}
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Property</label>
@@ -291,11 +370,25 @@ export default function Bookings() {
                 <input className="input" value={form.id_proof_number}
                   onChange={e => setForm(f => ({ ...f, id_proof_number: e.target.value }))} />
               </div>
-              <div>
-                <label className="label">Vehicle Number</label>
-                <input className="input" value={form.vehicle_number}
-                  onChange={e => setForm(f => ({ ...f, vehicle_number: e.target.value }))} />
+
+              {/* ID Proof File Upload Component */}
+              <div className="sm:col-span-2">
+                <IdProofUpload
+                  selectedFile={selectedFile}
+                  onFileSelect={(file) => {
+                    setSelectedFile(file);
+                    if (file) setRemoveExistingFile(false);
+                  }}
+                  existingUrl={!removeExistingFile ? editingBookingObj?.id_proof_file : undefined}
+                  existingFileName={!removeExistingFile ? editingBookingObj?.id_proof_original_name : undefined}
+                  existingMimeType={!removeExistingFile ? editingBookingObj?.id_proof_mime_type : undefined}
+                  onRemoveExisting={() => {
+                    setRemoveExistingFile(true);
+                    setSelectedFile(null);
+                  }}
+                />
               </div>
+
               <div className="sm:col-span-2">
                 <label className="label">Notes</label>
                 <textarea className="input h-20 resize-none" value={form.notes}
@@ -323,6 +416,7 @@ export default function Bookings() {
                 <div className="mt-1">{bookingStatusBadge(selected.status)}</div>
               </div>
             </div>
+
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-slate-500 uppercase">Guest</p>
@@ -335,23 +429,46 @@ export default function Bookings() {
                 <p><span className="text-slate-500">Check-in:</span> <span className="font-medium">{selected.check_in}</span></p>
                 <p><span className="text-slate-500">Check-out:</span> <span className="font-medium">{selected.check_out}</span></p>
                 <p><span className="text-slate-500">Guests:</span> <span className="font-medium">{selected.num_guests}</span></p>
-                {selected.vehicle_number && <p><span className="text-slate-500">Vehicle:</span> <span className="font-medium">{selected.vehicle_number}</span></p>}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-slate-500 uppercase">ID Proof</p>
-                <p><span className="text-slate-500">Type:</span> <span className="font-medium">{selected.id_proof_type}</span></p>
-                <p><span className="text-slate-500">Number:</span> <span className="font-mono font-medium">{selected.id_proof_number}</span></p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm bg-slate-50 p-4 rounded-xl">
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-slate-500 uppercase">Identity Verification</p>
+                <p><span className="text-slate-500">Type:</span> <span className="font-medium">{selected.id_proof_type || 'N/A'}</span></p>
+                <p><span className="text-slate-500">Number:</span> <span className="font-mono font-medium">{selected.id_proof_number || 'N/A'}</span></p>
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-slate-500 uppercase">Uploaded Document</p>
+                {selected.id_proof_file ? (
+                  <div className="space-y-1">
+                    <p className="font-medium text-slate-800 text-xs truncate">
+                      {selected.id_proof_original_name || selected.id_proof_file.split('/').pop()}
+                    </p>
+                    <a
+                      href={selected.id_proof_file.startsWith('http') ? selected.id_proof_file : `http://localhost:5000${selected.id_proof_file}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium hover:underline"
+                    >
+                      View Uploaded Document <ExternalLink size={12} />
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic">No document uploaded</p>
+                )}
               </div>
             </div>
+
             <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-sm">
               <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Payment Summary</p>
               <div className="flex justify-between"><span className="text-slate-500">Total Amount</span><span className="font-semibold">{CURRENCY}{selected.total_amount.toLocaleString()}</span></div>
               <div className="flex justify-between"><span className="text-slate-500">Advance Paid</span><span className="text-emerald-600 font-medium">{CURRENCY}{selected.advance_paid.toLocaleString()}</span></div>
               <div className="flex justify-between border-t border-slate-200 pt-2 mt-1"><span className="font-medium">Balance Due</span><span className={`font-bold ${selected.balance_due > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{CURRENCY}{selected.balance_due.toLocaleString()}</span></div>
             </div>
+
             {selected.notes && <p className="text-sm text-slate-600 italic">"{selected.notes}"</p>}
+
             {selected.status === 'awaiting_approval' && (
               <div className="flex gap-2">
                 <button onClick={() => { approveBooking(selected.id); setSelected(null); }}
@@ -360,12 +477,15 @@ export default function Bookings() {
                   className="btn-danger flex-1 justify-center"><XCircle size={15} /> Reject</button>
               </div>
             )}
+
             <div className="flex gap-2">
               <button onClick={() => openEdit(selected)} className="btn-secondary flex-1 justify-center">
                 <Edit3 size={15} /> Edit Booking
               </button>
-              <button onClick={() => generateBookingPDF(selected)} className="btn-secondary flex-1 justify-center">
-                <Download size={15} /> Download PDF
+              <button onClick={() => handleDownloadPdf(selected)} disabled={downloadingId === selected.id}
+                className="btn-secondary flex-1 justify-center disabled:opacity-50">
+                {downloadingId === selected.id ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+                Download PDF
               </button>
               <button onClick={() => { setDeleteTarget(selected); setSelected(null); }}
                 className="btn-danger flex-1 justify-center">

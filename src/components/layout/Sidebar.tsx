@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Building2, Users, Wallet, BarChart3,
-  Settings, BookOpen, ChevronRight, Shield, X, LogOut,
+  Settings, BookOpen, Calendar, ChevronRight, Shield, X, LogOut,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -14,6 +14,7 @@ const ADMIN_NAV: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, view: 'dashboard' },
   { label: 'Properties', icon: Building2, view: 'properties' },
   { label: 'Bookings', icon: BookOpen, view: 'bookings' },
+  { label: 'Calendar', icon: Calendar, view: 'calendar' },
   { label: 'Guests', icon: Users, view: 'guests' },
   { label: 'Finance', icon: Wallet, view: 'finance' },
   { label: 'Reports', icon: BarChart3, view: 'reports' },

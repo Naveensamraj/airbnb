@@ -78,10 +78,6 @@ const BookingSchema = new mongoose.Schema(
       required: [true, "Number of guests is required"],
       min: [1, "There must be at least one guest"],
     },
-    vehicle_number: {
-      type: String,
-      trim: true,
-    },
     id_proof_type: {
       type: String,
       trim: true,
@@ -89,6 +85,36 @@ const BookingSchema = new mongoose.Schema(
     id_proof_number: {
       type: String,
       trim: true,
+    },
+    id_proof_file: {
+      type: String,
+      trim: true,
+    },
+    id_proof_mime_type: {
+      type: String,
+      trim: true,
+    },
+    id_proof_original_name: {
+      type: String,
+      trim: true,
+    },
+    id_proof_size: {
+      type: Number,
+    },
+    idProofFile: {
+      type: String,
+      trim: true,
+    },
+    idProofMimeType: {
+      type: String,
+      trim: true,
+    },
+    idProofOriginalName: {
+      type: String,
+      trim: true,
+    },
+    idProofSize: {
+      type: Number,
     },
     notes: {
       type: String,
